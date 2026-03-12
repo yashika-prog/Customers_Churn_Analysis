@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Customer Churn Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f0e8;
+  --bg2:#ede8df;
+  --bg3:#e3ddd3;
+  --ink:#1a1410;
+  --ink2:#3d342a;
+  --ink3:#6b5d50;
+  --red:#c0392b;
+  --red2:#e74c3c;
+  --red-pale:#fdecea;
+  --amber:#d4820a;
+  --amber-pale:#fef3dc;
+  --green:#1e7e4a;
+  --green-pale:#e8f5ee;
+  --blue:#1a5f8a;
+  --blue-pale:#e6f0f8;
+  --border:#cfc8be;
+  --border2:#bbb3a8;
+}
+body{
+  font-family:'IBM Plex Sans',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+}
+
+/* ── HEADER ── */
+.hero{
+  background:var(--ink);
+  color:var(--bg);
+  padding:56px 60px 48px;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';
+  position:absolute;top:0;right:0;
+  width:400px;height:100%;
+  background:repeating-linear-gradient(
+    -45deg,transparent,transparent 20px,
+    rgba(255,255,255,.03) 20px,rgba(255,255,255,.03) 21px
+  );
+}
+.hero-tag{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;letter-spacing:.25em;text-transform:uppercase;
+  color:var(--red2);margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.hero-tag::before{content:'';width:30px;height:1px;background:var(--red2);}
+h1{
+  font-family:'IBM Plex Serif',serif;
+  font-size:clamp(32px,5vw,54px);
+  font-weight:600;line-height:1.1;
+  margin-bottom:14px;
+}
+h1 em{color:var(--red2);font-style:normal;}
+.hero-sub{
+  font-size:14px;color:rgba(245,240,232,.6);
+  font-family:'IBM Plex Mono',monospace;
+  letter-spacing:.03em;
+}
+.hero-kpis{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:0;
+  margin-top:40px;
+  border-top:1px solid rgba(255,255,255,.12);
+}
+.hero-kpi{
+  padding:24px 0 0;
+  border-right:1px solid rgba(255,255,255,.08);
+  padding-right:24px;margin-right:24px;
+}
+.hero-kpi:last-child{border-right:none;margin-right:0;padding-right:0;}
+.hero-kpi-val{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:clamp(26px,3vw,38px);
+  font-weight:600;line-height:1;
+  margin-bottom:6px;
+}
+.hero-kpi-val.danger{color:var(--red2);}
+.hero-kpi-val.warn{color:#f0a500;}
+.hero-kpi-val.ok{color:#4ec98a;}
+.hero-kpi-label{font-size:11px;color:rgba(245,240,232,.5);letter-spacing:.05em;}
+
+/* ── LAYOUT ── */
+.page{padding:40px 60px 80px;}
+.section{margin-bottom:52px;}
+.section-header{
+  display:flex;align-items:baseline;gap:16px;
+  margin-bottom:24px;
+  padding-bottom:12px;
+  border-bottom:2px solid var(--ink);
+}
+.section-num{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;color:var(--ink3);letter-spacing:.1em;
+}
+h2{
+  font-family:'IBM Plex Serif',serif;
+  font-size:22px;font-weight:600;
+}
+.section-desc{
+  font-size:13px;color:var(--ink3);
+  margin-bottom:20px;
+  max-width:700px;line-height:1.6;
+}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+
+/* ── CARDS ── */
+.card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:22px 24px;
+}
+.card-title{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:14px;
+}
+.chart-wrap{position:relative;width:100%;}
+.h200{height:200px}.h240{height:240px}.h260{height:260px}.h300{height:300px}.h340{height:340px}
+
+/* ── STAT CARDS ── */
+.stat-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:18px 20px;
+  position:relative;
+  overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;
+  top:0;left:0;width:3px;height:100%;
+  background:var(--accent,var(--ink));
+}
+.stat-val{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:28px;font-weight:600;
+  color:var(--accent,var(--ink));
+  margin-bottom:4px;
+}
+.stat-label{font-size:12px;color:var(--ink3);}
+.stat-sub{font-size:11px;color:var(--ink3);margin-top:4px;}
+
+/* ── RISK SEGMENTS ── */
+.seg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.seg-card{
+  border-radius:4px;padding:20px;
+  position:relative;overflow:hidden;
+}
+.seg-card.critical{background:#3d1a18;color:#fdecea;}
+.seg-card.high{background:#4a2e0d;color:#fef3dc;}
+.seg-card.medium{background:#0d2d1e;color:#e8f5ee;}
+.seg-card.low{background:#0d1f33;color:#e6f0f8;}
+.seg-pct{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:38px;font-weight:600;line-height:1;
+  margin-bottom:4px;
+}
+.seg-critical .seg-pct{color:#f5696b}
+.seg-card .seg-pct{color:inherit;opacity:.9;}
+.seg-name{font-size:13px;font-weight:500;margin-bottom:12px;opacity:.8;}
+.seg-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.55;line-height:1.9;}
+
+/* ── FACTOR TABLE ── */
+.factor-table{width:100%;border-collapse:collapse;font-size:13px;}
+.factor-table th{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink3);
+  text-align:left;padding:8px 12px;
+  border-bottom:2px solid var(--ink);
+}
+.factor-table td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.factor-table tr:last-child td{border-bottom:none;}
+.factor-table tr:hover td{background:var(--bg2);}
+.impact-bar{
+  display:inline-block;height:6px;border-radius:2px;vertical-align:middle;margin-right:8px;
+}
+.badge{
+  display:inline-block;padding:2px 9px;border-radius:2px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;
+  letter-spacing:.03em;
+}
+.badge.high{background:var(--red-pale);color:var(--red);}
+.badge.med{background:var(--amber-pale);color:var(--amber);}
+.badge.low{background:var(--green-pale);color:var(--green);}
+
+/* ── INSIGHT BOXES ── */
+.insights{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;}
+.insight{
+  background:var(--bg2);
+  border-left:3px solid var(--accent,var(--ink3));
+  padding:14px 16px;border-radius:0 4px 4px 0;
+}
+.insight-head{font-size:12px;font-weight:600;margin-bottom:4px;}
+.insight-body{font-size:12px;color:var(--ink3);line-height:1.5;}
+
+/* ── HEATMAP ── */
+.heatmap{width:100%;border-collapse:collapse;font-size:12px;}
+.heatmap th{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);
+  padding:6px 10px;text-align:center;
+}
+.heatmap td{
+  padding:10px 14px;text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;
+  border:2px solid var(--bg);
+}
+.heatmap .row-label{text-align:left;font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--ink2);font-weight:500;}
+
+/* footer */
+.footer{
+  text-align:center;padding:24px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  color:var(--ink3);letter-spacing:.1em;
+  border-top:1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <p class="hero-tag">Customer Retention Intelligence</p>
+  <h1>Why Customers <em>Leave</em></h1>
+  <p class="hero-sub">Churn Modelling Dataset · 10,000 customers · 3 geographies · 13 features</p>
+  <div class="hero-kpis">
+    <div class="hero-kpi">
+      <div class="hero-kpi-val danger" id="h1">20.4%</div>
+      <div class="hero-kpi-label">Overall Churn Rate</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val danger">2,037</div>
+      <div class="hero-kpi-label">Customers Lost</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val warn">32.4%</div>
+      <div class="hero-kpi-label">Germany Churn Rate</div>
+    </div>
+    <div class="hero-kpi">
+      <div class="hero-kpi-val ok">7.6%</div>
+      <div class="hero-kpi-label">Lowest (2 Products)</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── 01 EDA ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01 —</span>
+      <h2>Exploratory Data Analysis</h2>
+    </div>
+    <p class="section-desc">Dataset spans 10,000 bank customers across France, Germany and Spain. No missing values. Target variable <code>Exited</code> indicates churn (1 = churned, 0 = retained).</p>
+
+    <div class="grid-4" style="margin-bottom:20px;">
+      <div class="stat-card" style="--accent:#c0392b">
+        <div class="stat-val">10,000</div>
+        <div class="stat-label">Total Customers</div>
+      </div>
+      <div class="stat-card" style="--accent:#d4820a">
+        <div class="stat-val">38.9</div>
+        <div class="stat-label">Avg Age (years)</div>
+        <div class="stat-sub">Range: 18 – 92</div>
+      </div>
+      <div class="stat-card" style="--accent:#1a5f8a">
+        <div class="stat-val">$76.5K</div>
+        <div class="stat-label">Avg Balance</div>
+        <div class="stat-sub">36% hold $0 balance</div>
+      </div>
+      <div class="stat-card" style="--accent:#1e7e4a">
+        <div class="stat-val">650.5</div>
+        <div class="stat-label">Avg Credit Score</div>
+        <div class="stat-sub">Range: 350 – 850</div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <!-- Age distribution -->
+      <div class="card">
+        <p class="card-title">Age Distribution by Churn</p>
+        <div class="chart-wrap h240"><canvas id="ageChart"></canvas></div>
+      </div>
+      <!-- Credit score dist -->
+      <div class="card">
+        <p class="card-title">Credit Score Distribution</p>
+        <div class="chart-wrap h240"><canvas id="creditChart"></canvas></div>
+      </div>
+      <!-- Balance dist -->
+      <div class="card">
+        <p class="card-title">Balance Bands</p>
+        <div class="chart-wrap h240"><canvas id="balChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 02 CHURN RATE ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02 —</span>
+      <h2>Churn Rate Analysis</h2>
+    </div>
+    <p class="section-desc">Breaking down churn across every dimension reveals dramatic disparities. Geography, number of products, and age are the sharpest dividers.</p>
+
+    <div class="grid-2" style="margin-bottom:20px;">
+      <div class="card">
+        <p class="card-title">Churn Rate by Geography</p>
+        <div class="chart-wrap h200"><canvas id="geoChart"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Churn Rate by Number of Products</p>
+        <div class="chart-wrap h200"><canvas id="prodChart"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:20px;">
+      <div class="card">
+        <p class="card-title">Churn Rate by Age Group</p>
+        <div class="chart-wrap h220"><canvas id="ageChurnChart"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Churn Rate by Gender &amp; Geography</p>
+        <div class="chart-wrap h220"><canvas id="geoGenderChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Heatmap: Active vs Age -->
+    <div class="card">
+      <p class="card-title">Churn Rate Heatmap — Active Member × Age Group</p>
+      <table class="heatmap" style="margin-top:8px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Membership</th>
+            <th>18–30</th><th>31–40</th><th>41–50</th><th>51–60</th><th>60+</th>
+          </tr>
+        </thead>
+        <tbody id="heatmapBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 03 SEGMENTATION ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03 —</span>
+      <h2>Customer Segmentation</h2>
+    </div>
+    <p class="section-desc">Customers scored across five risk dimensions: age group, product count, activity status, geography, and gender. Four distinct risk tiers emerge.</p>
+
+    <div class="seg-grid" style="margin-bottom:24px;">
+      <div class="seg-card critical">
+        <div class="seg-pct" style="color:#f5696b">90%</div>
+        <div class="seg-name">Critical Risk</div>
+        <div class="seg-meta">329 customers<br>296 already churned<br>Avg Age: 48.5<br>Avg Balance: $93.9K</div>
+      </div>
+      <div class="seg-card high">
+        <div class="seg-pct" style="color:#f0a500">44%</div>
+        <div class="seg-name">High Risk</div>
+        <div class="seg-meta">2,010 customers<br>882 churned<br>Avg Age: 48.0<br>Avg Balance: $92.5K</div>
+      </div>
+      <div class="seg-card medium">
+        <div class="seg-pct" style="color:#4ec98a">18%</div>
+        <div class="seg-name">Medium Risk</div>
+        <div class="seg-meta">3,042 customers<br>536 churned<br>Avg Age: 39.7<br>Avg Balance: $77.2K</div>
+      </div>
+      <div class="seg-card low">
+        <div class="seg-pct" style="color:#5ba8d8">7%</div>
+        <div class="seg-name">Low Risk</div>
+        <div class="seg-meta">4,619 customers<br>323 churned<br>Avg Age: 33.7<br>Avg Balance: $67.8K</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <p class="card-title">Segment Size vs Churn Volume</p>
+        <div class="chart-wrap h260"><canvas id="segChart"></canvas></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Active vs Inactive — Churn by Age</p>
+        <div class="chart-wrap h260"><canvas id="activeAgeChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 04 KEY FACTORS ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04 —</span>
+      <h2>Key Churn Factors</h2>
+    </div>
+    <p class="section-desc">Ranked by impact magnitude and statistical significance. Age and product count are the dominant predictors; credit score and tenure show minimal predictive power.</p>
+
+    <div class="grid-2" style="margin-bottom:24px;align-items:start;">
+      <div class="card">
+        <p class="card-title">Factor Impact Ranking</p>
+        <table class="factor-table">
+          <thead>
+            <tr><th>Factor</th><th>Churn Spread</th><th>Correlation</th><th>Impact</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Number of Products</strong></td>
+              <td><span class="impact-bar" style="width:90px;background:#c0392b;"></span>92.4pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">−0.048*</td>
+              <td><span class="badge high">Critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Age Group</strong></td>
+              <td><span class="impact-bar" style="width:75px;background:#e74c3c;"></span>48.7pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">+0.285</td>
+              <td><span class="badge high">Critical</span></td>
+            </tr>
+            <tr>
+              <td><strong>Geography</strong></td>
+              <td><span class="impact-bar" style="width:55px;background:#d4820a;"></span>16.2pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">—</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><strong>Gender</strong></td>
+              <td><span class="impact-bar" style="width:45px;background:#d4820a;"></span>8.6pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">—</td>
+              <td><span class="badge med">Medium</span></td>
+            </tr>
+            <tr>
+              <td><strong>Active Member Status</strong></td>
+              <td><span class="impact-bar" style="width:40px;background:#d4820a;"></span>12.6pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">−0.156</td>
+              <td><span class="badge med">Medium</span></td>
+            </tr>
+            <tr>
+              <td><strong>Balance (non-zero)</strong></td>
+              <td><span class="impact-bar" style="width:30px;background:#1e7e4a;"></span>10.3pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">+0.119</td>
+              <td><span class="badge med">Medium</span></td>
+            </tr>
+            <tr>
+              <td><strong>Credit Score</strong></td>
+              <td><span class="impact-bar" style="width:16px;background:#1a5f8a;"></span>4.2pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">−0.027</td>
+              <td><span class="badge low">Low</span></td>
+            </tr>
+            <tr>
+              <td><strong>Tenure</strong></td>
+              <td><span class="impact-bar" style="width:12px;background:#1a5f8a;"></span>5.8pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">−0.014</td>
+              <td><span class="badge low">Low</span></td>
+            </tr>
+            <tr>
+              <td><strong>Has Credit Card</strong></td>
+              <td><span class="impact-bar" style="width:10px;background:#8fa3be;"></span>0.6pp</td>
+              <td style="font-family:'IBM Plex Mono',monospace;">−0.007</td>
+              <td><span class="badge low">Negligible</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:10px;color:var(--ink3);margin-top:8px;font-family:'IBM Plex Mono',monospace;">*Products 3 & 4 have extreme churn despite negative linear correlation — non-linear effect.</p>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <p class="card-title">Correlation with Churn</p>
+          <div class="chart-wrap h200"><canvas id="corrChart"></canvas></div>
+        </div>
+        <div class="card">
+          <p class="card-title">Churn by Tenure (months)</p>
+          <div class="chart-wrap h160"><canvas id="tenureChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="insights">
+      <div class="insight" style="--accent:#c0392b">
+        <div class="insight-head">🚨 Products 3 &amp; 4 are a trap</div>
+        <div class="insight-body">Customers with 3 products churn at <strong>82.7%</strong>; those with 4 churn at <strong>100%</strong>. Over-selling is destroying retention. Investigate product bundling strategy urgently.</div>
+      </div>
+      <div class="insight" style="--accent:#d4820a">
+        <div class="insight-head">⚠️ Germany is an outlier</div>
+        <div class="insight-body">Germany's churn rate of <strong>32.4%</strong> is double France's (16.2%) with similar customer counts. Indicates a regional service, pricing, or competitive issue specific to Germany.</div>
+      </div>
+      <div class="insight" style="--accent:#c0392b">
+        <div class="insight-head">🔴 Age 51–60 is the danger zone</div>
+        <div class="insight-body">Customers aged 51–60 churn at <strong>56.2%</strong> — the highest of any group. Inactive members in this bracket hit <strong>85.7%</strong> churn. Retention programs should target this cohort first.</div>
+      </div>
+      <div class="insight" style="--accent:#d4820a">
+        <div class="insight-head">⚡ Inactive members at risk</div>
+        <div class="insight-body">Inactive members churn at <strong>26.9%</strong> vs 14.3% for actives. Re-engagement campaigns could recover a significant portion of the 4,849 inactive customers.</div>
+      </div>
+      <div class="insight" style="--accent:#1e7e4a">
+        <div class="insight-head">✅ 2-product customers are the anchor</div>
+        <div class="insight-body">Customers with exactly 2 products churn at just <strong>7.6%</strong> — the sweet spot. Cross-selling one additional product to single-product holders could dramatically improve retention.</div>
+      </div>
+      <div class="insight" style="--accent:#1a5f8a">
+        <div class="insight-body" style="margin-top:4px;"><strong>Female customers churn at 25.1%</strong> vs 16.5% for males. The gap is consistent across all geographies, suggesting a systemic product-fit or service quality issue for female customers.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<div class="footer">Customer Churn Analysis · Churn_Modelling.csv · 10,000 records</div>
+
+<script>
+const INK='#1a1410', MUTED='#6b5d50', GRID='rgba(26,20,16,.07)';
+Chart.defaults.font.family="'IBM Plex Mono',monospace";
+Chart.defaults.color=MUTED;
+
+const tip={
+  backgroundColor:'#fff',
+  borderColor:'#cfc8be',borderWidth:1,
+  titleColor:INK,bodyColor:MUTED,
+  titleFont:{size:11},bodyFont:{size:11},
+  padding:10
+};
+
+/* Age distribution bars */
+new Chart(document.getElementById('ageChart'),{
+  type:'bar',
+  data:{
+    labels:['18-25','26-30','31-35','36-40','41-45','46-50','51-55','56-60','61-65','65+'],
+    datasets:[
+      {label:'Retained',data:[340,540,850,940,780,590,330,200,150,80],backgroundColor:'rgba(26,95,138,.65)',borderRadius:2},
+      {label:'Churned',data:[20,40,100,150,200,250,230,180,90,30],backgroundColor:'rgba(192,57,43,.75)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:tip},
+    scales:{x:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}},y:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}}}}
+});
+
+/* Credit score */
+new Chart(document.getElementById('creditChart'),{
+  type:'bar',
+  data:{
+    labels:['350-499','500-599','600-699','700-799','800-850'],
+    datasets:[
+      {label:'Retained',data:[482,1892,3065,1997,527],backgroundColor:'rgba(26,95,138,.65)',borderRadius:2},
+      {label:'Churned',data:[150,510,753,496,128],backgroundColor:'rgba(192,57,43,.75)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:tip},
+    scales:{x:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}},y:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}}}}
+});
+
+/* Balance bands */
+new Chart(document.getElementById('balChart'),{
+  type:'bar',
+  data:{
+    labels:['Zero','1-50K','50K-100K','100K-150K','150K+'],
+    datasets:[
+      {label:'Retained',data:[3117,49,1209,2843,745],backgroundColor:'rgba(26,95,138,.65)',borderRadius:2},
+      {label:'Churned',data:[500,26,300,987,224],backgroundColor:'rgba(192,57,43,.75)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:tip},
+    scales:{x:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}},y:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}}}}
+});
+
+/* Geo churn rate */
+new Chart(document.getElementById('geoChart'),{
+  type:'bar',
+  data:{
+    labels:['France','Germany','Spain'],
+    datasets:[{
+      label:'Churn Rate',
+      data:[16.2,32.4,16.7],
+      backgroundColor:['rgba(26,95,138,.75)','rgba(192,57,43,.85)','rgba(26,95,138,.75)'],
+      borderRadius:3
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:10}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID},max:40,
+        plugins:{annotation:{annotations:{line:{type:'line',yMin:20.4,yMax:20.4,borderColor:'rgba(192,57,43,.4)',borderDash:[4,4]}}}}}
+    }
+  }
+});
+
+/* Products churn */
+new Chart(document.getElementById('prodChart'),{
+  type:'bar',
+  data:{
+    labels:['1 Product','2 Products','3 Products','4 Products'],
+    datasets:[{
+      label:'Churn Rate',
+      data:[27.7,7.6,82.7,100],
+      backgroundColor:['rgba(212,130,10,.8)','rgba(30,126,74,.8)','rgba(192,57,43,.85)','rgba(100,0,0,.9)'],
+      borderRadius:3
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:9}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID},max:110}
+    }
+  }
+});
+
+/* Age group churn */
+new Chart(document.getElementById('ageChurnChart'),{
+  type:'line',
+  data:{
+    labels:['18-30','31-40','41-50','51-60','60+'],
+    datasets:[{
+      label:'Churn Rate %',
+      data:[7.5,12.1,34.0,56.2,24.8],
+      borderColor:'#c0392b',backgroundColor:'rgba(192,57,43,.08)',
+      fill:true,tension:.35,pointRadius:5,pointBackgroundColor:'#c0392b',borderWidth:2
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:9}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID}}
+    }
+  }
+});
+
+/* Geo x Gender grouped bar */
+new Chart(document.getElementById('geoGenderChart'),{
+  type:'bar',
+  data:{
+    labels:['France','Germany','Spain'],
+    datasets:[
+      {label:'Female',data:[20.3,37.6,21.2],backgroundColor:'rgba(192,57,43,.8)',borderRadius:2},
+      {label:'Male',data:[12.7,27.8,13.1],backgroundColor:'rgba(26,95,138,.7)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:9}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID}}
+    }
+  }
+});
+
+/* Heatmap table */
+const heatData=[
+  {label:'Active',vals:[5.1,9.2,25.4,34.7,11.2],colors:['#e8f5ee','#e8f5ee','#fef3dc','#fef3dc','#e8f5ee'],texts:['#1e7e4a','#1e7e4a','#d4820a','#1a5f8a','#1e7e4a']},
+  {label:'Inactive',vals:[10.1,14.9,41.6,85.7,82.0],colors:['#e8f5ee','#fef3dc','#fdecea','#fdecea','#fdecea'],texts:['#1e7e4a','#d4820a','#c0392b','#c0392b','#c0392b']}
+];
+document.getElementById('heatmapBody').innerHTML=heatData.map(r=>`<tr>
+  <td class="row-label" style="background:#fff;font-weight:500;">${r.label}</td>
+  ${r.vals.map((v,i)=>`<td style="background:${r.colors[i]};color:${r.texts[i]};font-weight:600;">${v}%</td>`).join('')}
+</tr>`).join('');
+
+/* Segment chart */
+new Chart(document.getElementById('segChart'),{
+  type:'bar',
+  data:{
+    labels:['Critical Risk','High Risk','Medium Risk','Low Risk'],
+    datasets:[
+      {label:'Retained',data:[33,1128,2506,4296],backgroundColor:'rgba(26,95,138,.65)',borderRadius:2},
+      {label:'Churned',data:[296,882,536,323],backgroundColor:'rgba(192,57,43,.8)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:tip},
+    scales:{x:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}},y:{stacked:true,ticks:{font:{size:9}},grid:{color:GRID}}}
+  }
+});
+
+/* Active x Age chart */
+new Chart(document.getElementById('activeAgeChart'),{
+  type:'bar',
+  data:{
+    labels:['18-30','31-40','41-50','51-60','60+'],
+    datasets:[
+      {label:'Active',data:[5.1,9.2,25.4,34.7,11.2],backgroundColor:'rgba(30,126,74,.75)',borderRadius:2},
+      {label:'Inactive',data:[10.1,14.9,41.6,85.7,82.0],backgroundColor:'rgba(192,57,43,.8)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:9}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID}}
+    }
+  }
+});
+
+/* Correlation chart */
+new Chart(document.getElementById('corrChart'),{
+  type:'bar',
+  data:{
+    labels:['Age','Balance','Est. Salary','Tenure','HasCrCard','CreditScore','NumProducts','IsActive'],
+    datasets:[{
+      label:'Correlation',
+      data:[0.285,0.119,0.012,-0.014,-0.007,-0.027,-0.048,-0.156],
+      backgroundColor:d=>d.raw>=0?'rgba(192,57,43,.8)':'rgba(26,95,138,.75)',
+      borderRadius:2
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:tip},
+    scales:{
+      x:{ticks:{font:{size:8}},grid:{color:GRID}},
+      y:{ticks:{font:{size:9}},grid:{color:GRID}}
+    }
+  }
+});
+
+/* Tenure chart */
+new Chart(document.getElementById('tenureChart'),{
+  type:'line',
+  data:{
+    labels:['0','1','2','3','4','5','6','7','8','9','10'],
+    datasets:[{
+      label:'Churn %',
+      data:[23.0,22.4,19.2,21.1,20.5,20.7,20.3,17.2,19.2,21.6,20.6],
+      borderColor:'#1a5f8a',backgroundColor:'rgba(26,95,138,.06)',
+      fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#1a5f8a',borderWidth:1.5
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{ticks:{font:{size:9}},grid:{color:GRID},title:{display:true,text:'Years',font:{size:9},color:MUTED}},
+      y:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:GRID},min:10,max:30}
+    }
+  }
+});
+</script>
+</body>
+</html>

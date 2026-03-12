@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Churn Visualizations</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c14;
+  --s1:#0d1422;
+  --s2:#121a2e;
+  --s3:#1a2440;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);
+  --text:#c8d8f0;
+  --muted:#5a7090;
+  --red:#ff4d6d;
+  --red2:#c9184a;
+  --red-glow:rgba(255,77,109,.18);
+  --teal:#00d4aa;
+  --teal-glow:rgba(0,212,170,.15);
+  --amber:#ffb347;
+  --blue:#4da6ff;
+  --purple:#b57bee;
+  --r:8px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Syne',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Background grid ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── Header ── */
+.header{
+  position:relative;z-index:2;
+  padding:44px 52px 36px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-end;justify-content:space-between;
+}
+.header-left{}
+.tag{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--red);margin-bottom:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.tag-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.4s ease infinite;}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 var(--red)}50%{opacity:.4;box-shadow:0 0 0 4px transparent}}
+h1{
+  font-size:clamp(30px,4.5vw,52px);
+  font-weight:800;line-height:1.05;
+  letter-spacing:-.02em;
+  background:linear-gradient(135deg,#c8d8f0 0%,var(--red) 60%,var(--amber) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.header-stats{
+  display:flex;gap:32px;
+  font-family:'JetBrains Mono',monospace;
+}
+.hstat{text-align:right;}
+.hstat-num{font-size:24px;font-weight:500;color:var(--red);line-height:1;}
+.hstat-label{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-top:3px;}
+
+/* ── Nav pills ── */
+.nav{
+  display:flex;gap:8px;padding:16px 52px;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:10;
+  background:rgba(8,12,20,.92);backdrop-filter:blur(10px);
+}
+.nav-pill{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:.06em;
+  padding:6px 16px;border-radius:20px;cursor:pointer;
+  border:1px solid var(--border2);color:var(--muted);
+  background:none;transition:all .2s;
+  text-decoration:none;
+}
+.nav-pill:hover,.nav-pill.active{
+  background:var(--red);border-color:var(--red);
+  color:#fff;
+}
+
+/* ── Sections ── */
+.section{
+  padding:44px 52px;
+  border-bottom:1px solid var(--border);
+  position:relative;z-index:1;
+}
+.sec-header{
+  display:flex;align-items:center;gap:16px;
+  margin-bottom:28px;
+}
+.sec-num{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--muted);letter-spacing:.15em;
+}
+.sec-title{font-size:22px;font-weight:700;letter-spacing:-.01em;}
+.sec-desc{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--muted);margin-bottom:24px;line-height:1.7;
+  max-width:680px;
+}
+
+/* ── Grid ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+.g12{display:grid;grid-template-columns:repeat(12,1fr);gap:20px;}
+
+/* ── Panel ── */
+.panel{
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:22px 24px;
+  position:relative;overflow:hidden;
+  transition:border-color .2s;
+}
+.panel:hover{border-color:var(--border2);}
+.panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--panel-accent,rgba(255,77,109,.4)),transparent);
+}
+.ptitle{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ptag{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;padding:2px 8px;border-radius:3px;
+  background:var(--tag-bg,rgba(255,77,109,.12));
+  color:var(--tag-color,var(--red));
+}
+
+/* Chart sizes */
+.chart-wrap{position:relative;width:100%;}
+.h180{height:180px}.h220{height:220px}.h260{height:260px}
+.h300{height:300px}.h340{height:340px}.h380{height:380px}
+
+/* ── Donut stat overlay ── */
+.donut-wrap{position:relative;display:flex;align-items:center;justify-content:center;}
+.donut-center{
+  position:absolute;text-align:center;pointer-events:none;
+}
+.donut-big{
+  font-size:32px;font-weight:800;
+  font-family:'JetBrains Mono',monospace;
+  line-height:1;
+}
+.donut-sub{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;}
+
+/* ── Custom legend ── */
+.clegend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;}
+.cli{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.cldot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+/* ── Heatmap ── */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap{
+  width:100%;border-collapse:separate;border-spacing:3px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+}
+.heatmap th{
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);padding:6px 8px;text-align:center;font-weight:400;
+}
+.heatmap td{
+  padding:11px 14px;text-align:center;border-radius:4px;
+  font-weight:600;font-size:12px;cursor:default;
+  transition:transform .15s,filter .15s;
+  position:relative;
+}
+.heatmap td:hover{transform:scale(1.06);filter:brightness(1.2);z-index:2;}
+.hm-row-label{
+  font-family:'Syne',sans-serif;font-size:12px;font-weight:600;
+  color:var(--text);text-align:left!important;background:none!important;
+  padding-left:0!important;white-space:nowrap;
+}
+
+/* ── Inline bar ── */
+.ibar-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+.ibar-row{display:grid;grid-template-columns:90px 1fr 48px;align-items:center;gap:10px;}
+.ibar-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:right;}
+.ibar-track{height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;}
+.ibar-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.ibar-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;text-align:right;}
+
+/* ── Sparkline stat ── */
+.spark-stats{display:flex;justify-content:space-between;margin-bottom:12px;}
+.spark-stat{}
+.spark-stat-num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;}
+.spark-stat-label{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+
+/* ── Color legend scale ── */
+.color-scale{
+  display:flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);
+  margin-top:12px;
+}
+.cs-bar{
+  flex:1;height:6px;border-radius:3px;
+  background:linear-gradient(90deg,#0d3d2e,#1e7e4a,#d4820a,#c0392b,#8b0000);
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-left">
+    <div class="tag"><span class="tag-dot"></span>Churn Intelligence · 10,000 customers</div>
+    <h1>Churn<br>Visualizations</h1>
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-num">20.4%</div>
+      <div class="hstat-label">Churn Rate</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-num" style="color:var(--teal)">7.6%</div>
+      <div class="hstat-label">Best Segment</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-num" style="color:var(--amber)">100%</div>
+      <div class="hstat-label">Worst Segment</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <a class="nav-pill active" href="#dist">Churn Distribution</a>
+  <a class="nav-pill" href="#tenure">Tenure vs Churn</a>
+  <a class="nav-pill" href="#heatmaps">Heatmaps</a>
+</nav>
+
+<!-- ═══════════════════════════════════════
+     SECTION 1 — CHURN DISTRIBUTION
+═══════════════════════════════════════ -->
+<section class="section" id="dist">
+  <div class="sec-header">
+    <span class="sec-num">01 /</span>
+    <h2 class="sec-title">Churn Distribution</h2>
+  </div>
+  <p class="sec-desc">
+    How churn is distributed across the customer base — by overall split, geography, gender,<br>
+    age group, product count, and activity status.
+  </p>
+
+  <!-- Row 1: Overall donut + gender + geo -->
+  <div class="g12" style="margin-bottom:20px;">
+
+    <!-- Overall donut -->
+    <div class="panel" style="grid-column:span 3;--panel-accent:rgba(255,77,109,.5);">
+      <p class="ptitle">Overall split <span class="ptag">n=10,000</span></p>
+      <div class="donut-wrap h220">
+        <div class="chart-wrap h220"><canvas id="overallDonut"></canvas></div>
+        <div class="donut-center">
+          <div class="donut-big" style="color:var(--red)">20.4%</div>
+          <div class="donut-sub">churn rate</div>
+        </div>
+      </div>
+      <div class="clegend" style="margin-top:10px;">
+        <div class="cli"><div class="cldot" style="background:var(--red)"></div>Churned 2,037</div>
+        <div class="cli"><div class="cldot" style="background:var(--teal)"></div>Retained 7,963</div>
+      </div>
+    </div>
+
+    <!-- Gender bar -->
+    <div class="panel" style="grid-column:span 3;--panel-accent:rgba(0,212,170,.3);">
+      <p class="ptitle">By gender <span class="ptag" style="--tag-bg:rgba(0,212,170,.1);--tag-color:var(--teal)">8.6pp gap</span></p>
+      <div class="chart-wrap h220"><canvas id="genderChart"></canvas></div>
+    </div>
+
+    <!-- Geography -->
+    <div class="panel" style="grid-column:span 3;--panel-accent:rgba(255,179,71,.3);">
+      <p class="ptitle">By geography <span class="ptag" style="--tag-bg:rgba(255,179,71,.12);--tag-color:var(--amber)">Germany outlier</span></p>
+      <div class="chart-wrap h220"><canvas id="geoDonutChart"></canvas></div>
+    </div>
+
+    <!-- Products -->
+    <div class="panel" style="grid-column:span 3;--panel-accent:rgba(181,123,238,.3);">
+      <p class="ptitle">By products <span class="ptag" style="--tag-bg:rgba(181,123,238,.12);--tag-color:var(--purple)">non-linear!</span></p>
+      <div class="chart-wrap h220"><canvas id="prodDonutChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- Row 2: Age group bars + active/inactive + credit card -->
+  <div class="g12">
+
+    <!-- Age group grouped bar -->
+    <div class="panel" style="grid-column:span 5;--panel-accent:rgba(255,77,109,.4);">
+      <p class="ptitle">By age group — retained vs churned <span class="ptag">peak: 51-60</span></p>
+      <div class="clegend">
+        <div class="cli"><div class="cldot" style="background:var(--teal)"></div>Retained</div>
+        <div class="cli"><div class="cldot" style="background:var(--red)"></div>Churned</div>
+      </div>
+      <div class="chart-wrap h260"><canvas id="ageGroupChart"></canvas></div>
+    </div>
+
+    <!-- Products extreme chart -->
+    <div class="panel" style="grid-column:span 4;--panel-accent:rgba(255,179,71,.4);">
+      <p class="ptitle">Products — churn rate %</p>
+      <div class="chart-wrap h180"><canvas id="prodRateChart"></canvas></div>
+      <div class="ibar-wrap" style="margin-top:16px;">
+        <div class="ibar-row"><span class="ibar-label">1 product</span><div class="ibar-track"><div class="ibar-fill" style="width:27.7%;background:var(--amber)"></div></div><span class="ibar-val" style="color:var(--amber)">27.7%</span></div>
+        <div class="ibar-row"><span class="ibar-label">2 products</span><div class="ibar-track"><div class="ibar-fill" style="width:7.6%;background:var(--teal)"></div></div><span class="ibar-val" style="color:var(--teal)">7.6%</span></div>
+        <div class="ibar-row"><span class="ibar-label">3 products</span><div class="ibar-track"><div class="ibar-fill" style="width:82.7%;background:var(--red)"></div></div><span class="ibar-val" style="color:var(--red)">82.7%</span></div>
+        <div class="ibar-row"><span class="ibar-label">4 products</span><div class="ibar-track"><div class="ibar-fill" style="width:100%;background:#8b0000;box-shadow:0 0 8px #8b0000"></div></div><span class="ibar-val" style="color:#ff6b6b">100%</span></div>
+      </div>
+    </div>
+
+    <!-- Active status -->
+    <div class="panel" style="grid-column:span 3;--panel-accent:rgba(77,166,255,.3);">
+      <p class="ptitle">Active vs Inactive</p>
+      <div class="chart-wrap h180"><canvas id="activeChart"></canvas></div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+        <div style="background:rgba(255,77,109,.08);border-radius:4px;padding:10px 12px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--red)">26.9%</div>
+          <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">Inactive churn rate</div>
+        </div>
+        <div style="background:rgba(0,212,170,.08);border-radius:4px;padding:10px 12px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--teal)">14.3%</div>
+          <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">Active churn rate</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     SECTION 2 — TENURE VS CHURN
+═══════════════════════════════════════ -->
+<section class="section" id="tenure">
+  <div class="sec-header">
+    <span class="sec-num">02 /</span>
+    <h2 class="sec-title">Customer Tenure vs Churn</h2>
+  </div>
+  <p class="sec-desc">
+    Tenure (years with the bank) shows a surprisingly flat churn profile — loyalty alone does not protect customers.<br>
+    The real risk comes from product count and age, not how long someone has been a customer.
+  </p>
+
+  <div class="g12" style="margin-bottom:20px;">
+
+    <!-- Tenure rate line -->
+    <div class="panel" style="grid-column:span 8;--panel-accent:rgba(77,166,255,.4);">
+      <p class="ptitle">Churn rate by tenure (years 0–10)</p>
+      <div class="spark-stats">
+        <div class="spark-stat"><div class="spark-stat-num" style="color:var(--red)">23.0%</div><div class="spark-stat-label">Year 0 (newest)</div></div>
+        <div class="spark-stat"><div class="spark-stat-num" style="color:var(--teal)">17.2%</div><div class="spark-stat-label">Year 7 (lowest)</div></div>
+        <div class="spark-stat"><div class="spark-stat-num" style="color:var(--amber)">5.8pp</div><div class="spark-stat-label">Total spread</div></div>
+      </div>
+      <div class="chart-wrap h260"><canvas id="tenureLineChart"></canvas></div>
+    </div>
+
+    <!-- Tenure stacked -->
+    <div class="panel" style="grid-column:span 4;--panel-accent:rgba(0,212,170,.3);">
+      <p class="ptitle">Volume by tenure</p>
+      <div class="clegend">
+        <div class="cli"><div class="cldot" style="background:var(--teal)"></div>Retained</div>
+        <div class="cli"><div class="cldot" style="background:var(--red)"></div>Churned</div>
+      </div>
+      <div class="chart-wrap h300"><canvas id="tenureStackChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <div class="g2">
+
+    <!-- Tenure x NumProducts heatmap-style line -->
+    <div class="panel" style="--panel-accent:rgba(255,179,71,.4);">
+      <p class="ptitle">Tenure × products — churn rate %</p>
+      <div class="clegend">
+        <div class="cli"><div class="cldot" style="background:var(--teal)"></div>2 products</div>
+        <div class="cli"><div class="cldot" style="background:var(--amber)"></div>1 product</div>
+        <div class="cli"><div class="cldot" style="background:var(--red)"></div>3 products</div>
+      </div>
+      <div class="chart-wrap h260"><canvas id="tenureProdChart"></canvas></div>
+    </div>
+
+    <!-- Tenure x Geography -->
+    <div class="panel" style="--panel-accent:rgba(181,123,238,.4);">
+      <p class="ptitle">Tenure × geography — churn rate %</p>
+      <div class="clegend">
+        <div class="cli"><div class="cldot" style="background:var(--blue)"></div>France</div>
+        <div class="cli"><div class="cldot" style="background:var(--red)"></div>Germany</div>
+        <div class="cli"><div class="cldot" style="background:var(--teal)"></div>Spain</div>
+      </div>
+      <div class="chart-wrap h260"><canvas id="tenureGeoChart"></canvas></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     SECTION 3 — HEATMAPS
+═══════════════════════════════════════ -->
+<section class="section" id="heatmaps">
+  <div class="sec-header">
+    <span class="sec-num">03 /</span>
+    <h2 class="sec-title">Churn Heatmaps</h2>
+  </div>
+  <p class="sec-desc">
+    Interaction effects between variables reveal the true risk combinations.<br>
+    Darker red = higher churn rate. Each cell shows the churn % for that combination.
+  </p>
+
+  <div class="color-scale" style="margin-bottom:28px;max-width:400px;">
+    <span>0%</span><div class="cs-bar"></div><span>100%</span>
+    <span style="margin-left:8px;">Churn rate intensity</span>
+  </div>
+
+  <!-- HM 1: Age x Geography -->
+  <div class="panel" style="margin-bottom:20px;--panel-accent:rgba(255,77,109,.5);">
+    <p class="ptitle">Age Group × Geography — churn rate %
+      <span class="ptag">Germany consistently doubles others</span>
+    </p>
+    <div class="heatmap-wrap"><table class="heatmap" id="hm-age-geo"></table></div>
+  </div>
+
+  <!-- HM 2: Age x Gender -->
+  <div class="g2" style="margin-bottom:20px;">
+    <div class="panel" style="--panel-accent:rgba(0,212,170,.4);">
+      <p class="ptitle">Age Group × Gender — churn rate %
+        <span class="ptag" style="--tag-bg:rgba(0,212,170,.1);--tag-color:var(--teal)">female always higher</span>
+      </p>
+      <div class="heatmap-wrap"><table class="heatmap" id="hm-age-gender"></table></div>
+    </div>
+
+    <!-- HM 3: Geo x Active -->
+    <div class="panel" style="--panel-accent:rgba(255,179,71,.4);">
+      <p class="ptitle">Geography × Activity — churn rate %
+        <span class="ptag" style="--tag-bg:rgba(255,179,71,.12);--tag-color:var(--amber)">inactivity amplifies geo risk</span>
+      </p>
+      <div class="heatmap-wrap"><table class="heatmap" id="hm-geo-active"></table></div>
+    </div>
+  </div>
+
+  <!-- HM 4: Age x NumProducts -->
+  <div class="panel" style="margin-bottom:20px;--panel-accent:rgba(181,123,238,.5);">
+    <p class="ptitle">Age Group × Number of Products — churn rate %
+      <span class="ptag" style="--tag-bg:rgba(181,123,238,.12);--tag-color:var(--purple)">age + products = catastrophic risk</span>
+    </p>
+    <div class="heatmap-wrap"><table class="heatmap" id="hm-age-prod"></table></div>
+  </div>
+
+  <!-- HM 5: Balance x Tenure -->
+  <div class="g2">
+    <div class="panel" style="--panel-accent:rgba(77,166,255,.4);">
+      <p class="ptitle">Balance Band × Tenure Group — churn rate %</p>
+      <div class="heatmap-wrap"><table class="heatmap" id="hm-bal-tenure"></table></div>
+    </div>
+    <!-- HM 6: Credit x Age -->
+    <div class="panel" style="--panel-accent:rgba(255,77,109,.4);">
+      <p class="ptitle">Credit Score Band × Age Group — churn rate %</p>
+      <div class="heatmap-wrap"><table class="heatmap" id="hm-credit-age"></table></div>
+    </div>
+  </div>
+
+</section>
+
+<div style="text-align:center;padding:20px 0 40px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;">
+  CHURN VISUALIZATIONS · CHURN_MODELLING.CSV · 10,000 RECORDS
+</div>
+
+<script>
+/* ── CHART GLOBALS ── */
+const RED='#ff4d6d',TEAL='#00d4aa',AMBER='#ffb347',BLUE='#4da6ff',PURPLE='#b57bee';
+const MUTED='rgba(90,112,144,.7)',GRID='rgba(255,255,255,.04)';
+const TIP={
+  backgroundColor:'#0d1422',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+  titleColor:'#c8d8f0',bodyColor:MUTED,padding:10,
+  titleFont:{family:"'JetBrains Mono',monospace",size:10},
+  bodyFont:{family:"'JetBrains Mono',monospace",size:11}
+};
+Chart.defaults.font.family="'JetBrains Mono',monospace";
+Chart.defaults.color=MUTED;
+
+const TICKS={color:MUTED,font:{size:9}};
+const SCALE=(cb)=>({ticks:{...TICKS,...(cb?{callback:cb}:{})},grid:{color:GRID},border:{color:'transparent'}});
+const PCT_SCALE=SCALE(v=>v+'%');
+
+/* ── 1. Overall donut ── */
+new Chart(document.getElementById('overallDonut'),{
+  type:'doughnut',
+  data:{labels:['Churned','Retained'],datasets:[{data:[2037,7963],backgroundColor:[RED,TEAL],borderWidth:0,hoverOffset:8}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}: ${c.raw.toLocaleString()}`}}}}
+});
+
+/* ── 2. Gender chart ── */
+new Chart(document.getElementById('genderChart'),{
+  type:'bar',
+  data:{
+    labels:['Female','Male'],
+    datasets:[
+      {label:'Retained',data:[3404,4559],backgroundColor:'rgba(0,212,170,.7)',borderRadius:4,borderSkipped:false},
+      {label:'Churned',data:[1139,898],backgroundColor:'rgba(255,77,109,.8)',borderRadius:4,borderSkipped:false}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toLocaleString()}`}}},
+    scales:{x:{...SCALE(),stacked:true},y:{...SCALE(),stacked:true}}}
+});
+
+/* ── 3. Geo donut ── */
+new Chart(document.getElementById('geoDonutChart'),{
+  type:'doughnut',
+  data:{labels:['France (16.2%)','Germany (32.4%)','Spain (16.7%)'],datasets:[{data:[16.2,32.4,16.7],backgroundColor:[BLUE,RED,TEAL],borderWidth:0,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{labels:{boxWidth:8,font:{size:9},color:MUTED},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}`}}}}
+  }
+});
+
+/* ── 4. Products donut ── */
+new Chart(document.getElementById('prodDonutChart'),{
+  type:'doughnut',
+  data:{labels:['1 product (27.7%)','2 products (7.6%)','3 products (82.7%)','4 products (100%)'],
+    datasets:[{data:[27.7,7.6,82.7,100],backgroundColor:[AMBER,TEAL,RED,'#6b0000'],borderWidth:0,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{labels:{boxWidth:8,font:{size:9},color:MUTED},tooltip:{...TIP}}}}
+});
+
+/* ── 5. Age group chart ── */
+new Chart(document.getElementById('ageGroupChart'),{
+  type:'bar',
+  data:{
+    labels:['18–30','31–40','41–50','51–60','60+'],
+    datasets:[
+      {label:'Retained',data:[1820,3913,1532,349,349],backgroundColor:'rgba(0,212,170,.7)',borderRadius:4,borderSkipped:false},
+      {label:'Churned',data:[148,538,788,448,115],backgroundColor:'rgba(255,77,109,.85)',borderRadius:4,borderSkipped:false}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:TIP},
+    scales:{x:{...SCALE(),stacked:true},y:{...SCALE(),stacked:true}}}
+});
+
+/* ── 6. Products rate chart ── */
+new Chart(document.getElementById('prodRateChart'),{
+  type:'bar',
+  data:{
+    labels:['1 product','2 products','3 products','4 products'],
+    datasets:[{label:'Churn %',data:[27.7,7.6,82.7,100],
+      backgroundColor:['rgba(255,179,71,.8)','rgba(0,212,170,.8)','rgba(255,77,109,.9)','rgba(139,0,0,1)'],
+      borderRadius:4}]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{x:SCALE(),y:{...PCT_SCALE,max:110}}}
+});
+
+/* ── 7. Active donut ── */
+new Chart(document.getElementById('activeChart'),{
+  type:'doughnut',
+  data:{labels:['Inactive (26.9%)','Active (14.3%)'],datasets:[{data:[4849,5151],backgroundColor:['rgba(255,77,109,.8)','rgba(0,212,170,.7)'],borderWidth:0}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{labels:{boxWidth:8,font:{size:9},color:MUTED}},tooltip:TIP}}
+});
+
+/* ── 8. Tenure line ── */
+const tenureLabels=['0','1','2','3','4','5','6','7','8','9','10'];
+const tenureRates=[23.0,22.4,19.2,21.1,20.5,20.7,20.3,17.2,19.2,21.6,20.6];
+new Chart(document.getElementById('tenureLineChart'),{
+  type:'line',
+  data:{labels:tenureLabels,datasets:[{
+    label:'Churn Rate %',data:tenureRates,
+    borderColor:BLUE,
+    backgroundColor: ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,'rgba(77,166,255,.2)');g.addColorStop(1,'rgba(77,166,255,0)');return g;},
+    fill:true,tension:.4,pointRadius:5,pointBackgroundColor:BLUE,
+    pointHoverRadius:7,borderWidth:2.5
+  },{
+    label:'Avg (20.4%)',data:Array(11).fill(20.4),
+    borderColor:'rgba(255,77,109,.35)',borderDash:[6,4],
+    pointRadius:0,borderWidth:1.5,fill:false
+  }]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{boxWidth:8,font:{size:9},color:MUTED}},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw}%`}}},
+    scales:{
+      x:{...SCALE(),title:{display:true,text:'Years with bank',color:MUTED,font:{size:9}}},
+      y:{...PCT_SCALE,min:10,max:30}
+    }
+  }
+});
+
+/* ── 9. Tenure stacked ── */
+new Chart(document.getElementById('tenureStackChart'),{
+  type:'bar',
+  data:{
+    labels:tenureLabels,
+    datasets:[
+      {label:'Retained',data:[318,803,847,796,786,803,771,851,828,771,389],backgroundColor:'rgba(0,212,170,.65)',borderRadius:2},
+      {label:'Churned',data:[95,232,201,213,203,209,196,177,197,213,101],backgroundColor:'rgba(255,77,109,.8)',borderRadius:2}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:TIP},
+    scales:{x:{...SCALE(),stacked:true},y:{...SCALE(),stacked:true}}}
+});
+
+/* ── 10. Tenure x Products ── */
+new Chart(document.getElementById('tenureProdChart'),{
+  type:'line',
+  data:{labels:tenureLabels,datasets:[
+    {label:'2 products',data:[12.9,8.1,6.1,7.7,9.1,5.8,8.3,6.8,7.7,6.7,8.3],borderColor:TEAL,pointRadius:3,pointBackgroundColor:TEAL,tension:.35,borderWidth:2,fill:false},
+    {label:'1 product',data:[28.4,29.6,29.6,25.7,28.8,28.7,28.2,23.2,25.3,31.2,25.7],borderColor:AMBER,pointRadius:3,pointBackgroundColor:AMBER,tension:.35,borderWidth:2,fill:false},
+    {label:'3 products',data:[100,78.1,81.0,85.7,65.0,86.1,94.1,79.2,85.7,73.9,94.1],borderColor:RED,pointRadius:3,pointBackgroundColor:RED,tension:.35,borderWidth:2,fill:false}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}}},
+    scales:{x:SCALE(),y:{...PCT_SCALE,min:0,max:110}}}
+});
+
+/* ── 11. Tenure x Geography ── */
+new Chart(document.getElementById('tenureGeoChart'),{
+  type:'line',
+  data:{labels:tenureLabels,datasets:[
+    {label:'France',data:[17.1,15.7,17.1,16.9,16.6,15.7,15.3,13.8,14.8,17.5,19.8],borderColor:BLUE,pointRadius:3,pointBackgroundColor:BLUE,tension:.35,borderWidth:2,fill:false},
+    {label:'Germany',data:[34.3,39.8,23.3,32.2,32.8,34.7,33.5,27.1,33.0,34.6,32.8],borderColor:RED,pointRadius:3,pointBackgroundColor:RED,tension:.35,borderWidth:2,fill:false},
+    {label:'Spain',data:[23.3,18.2,19.0,17.9,17.1,16.0,18.1,15.9,13.9,15.2,9.2],borderColor:TEAL,pointRadius:3,pointBackgroundColor:TEAL,tension:.35,borderWidth:2,fill:false}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}}},
+    scales:{x:SCALE(),y:{...PCT_SCALE,min:5,max:45}}}
+});
+
+/* ══════════════════════════════════════
+   HEATMAP BUILDER
+══════════════════════════════════════ */
+function heatColor(val) {
+  // 0-10%: teal-dark, 10-25%: teal-mid, 25-45%: amber, 45-70%: red, 70-100%: dark red
+  if (val >= 90) return {bg:'#5c0011',text:'#ffb3b8'};
+  if (val >= 70) return {bg:'#7b0e1e',text:'#ffc9cf'};
+  if (val >= 55) return {bg:'#9b1a28',text:'#ffd0d4'};
+  if (val >= 40) return {bg:'#7a3a00',text:'#ffd59f'};
+  if (val >= 28) return {bg:'#5c3d0a',text:'#ffe4b5'};
+  if (val >= 18) return {bg:'#0d3d2e',text:'#7eecd4'};
+  if (val >= 10) return {bg:'#092e24',text:'#5ee0c8'};
+  return {bg:'#061f19',text:'#3cd4bc'};
+}
+
+function buildHeatmap(id, colHeaders, rowHeaders, data) {
+  const table = document.getElementById(id);
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th></th>' + colHeaders.map(h=>`<th>${h}</th>`).join('') + '</tr>';
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  data.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="hm-row-label">${rowHeaders[i]}</td>` +
+      row.map(v => {
+        if (v===null || v===undefined) return `<td style="background:rgba(255,255,255,.03);color:rgba(255,255,255,.2);">—</td>`;
+        const pct = (v*100).toFixed(1);
+        const c = heatColor(parseFloat(pct));
+        return `<td style="background:${c.bg};color:${c.text};" title="${pct}%">${pct}%</td>`;
+      }).join('');
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+/* HM1: Age x Geography */
+buildHeatmap('hm-age-geo',
+  ['France','Germany','Spain'],
+  ['18–30','31–40','41–50','51–60','60+'],
+  [[.049,.124,.086],[.095,.209,.093],[.281,.488,.273],[.526,.695,.460],[.199,.389,.208]]
+);
+
+/* HM2: Age x Gender */
+buildHeatmap('hm-age-gender',
+  ['Female','Male'],
+  ['18–30','31–40','41–50','51–60','60+'],
+  [[.099,.056],[.156,.093],[.389,.295],[.652,.475],[.300,.203]]
+);
+
+/* HM3: Geo x Active */
+buildHeatmap('hm-geo-active',
+  ['Inactive (0)','Active (1)'],
+  ['France','Germany','Spain'],
+  [[.211,.115],[.411,.237],[.233,.107]]
+);
+
+/* HM4: Age x NumProducts */
+buildHeatmap('hm-age-prod',
+  ['1 Product','2 Products','3 Products','4 Products'],
+  ['18–30','31–40','41–50','51–60','60+'],
+  [[.109,.027,.613,1.0],[.169,.047,.714,1.0],[.440,.129,.926,1.0],[.638,.295,.979,1.0],[.301,.128,.765,1.0]]
+);
+
+/* HM5: Balance x Tenure */
+buildHeatmap('hm-bal-tenure',
+  ['0–2 yr','3–5 yr','6–7 yr','8–10 yr'],
+  ['Zero bal.','1–50K','50K–100K','100K–150K','150K+'],
+  [[.165,.136,.130,.122],[.350,.435,.357,.222],[.169,.228,.181,.206],[.258,.265,.229,.272],[.247,.207,.245,.233]]
+);
+
+/* HM6: Credit x Age */
+buildHeatmap('hm-credit-age',
+  ['18–30','31–40','41–50','51–60','60+'],
+  ['350–499','500–599','600–699','700–799','800–850'],
+  [[.097,.113,.438,.631,.333],[.080,.124,.347,.588,.294],[.068,.126,.327,.513,.217],[.074,.118,.330,.570,.246],[.081,.104,.343,.638,.212]]
+);
+
+/* ── Smooth scroll nav ── */
+document.querySelectorAll('.nav-pill').forEach(p=>{
+  p.addEventListener('click', e=>{
+    document.querySelectorAll('.nav-pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
